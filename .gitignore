@@ -2,3 +2,6 @@ __pycache__/
 *.pyc
 instance/
 .webassets-cache
+.env
+.venv
+.elasticbeanstalk/
