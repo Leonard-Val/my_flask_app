@@ -2,7 +2,6 @@ from flask import Flask, request, jsonify
 import requests
 import os
 import logging
-from datetime import datetime
 
 app = Flask(__name__)
 
@@ -22,33 +21,55 @@ def home():
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    app.logger.info(f"Received request data: {request.data}")
-    data = request.json
-    if not data or 'message' not in data:
-        app.logger.error("Invalid request data")
-        return jsonify({'status': 'failure', 'reason': 'Invalid request data'}), 400
-
-    message = format_alert_message(data)
-    app.logger.info(f"Formatted message: {message}")
-
     try:
+        data = request.json
+        app.logger.info(f"Received webhook data: {data}")
+        if not data or 'message' not in data:
+            app.logger.error("Invalid webhook data")
+            return jsonify({'status': 'failure', 'reason': 'Invalid webhook data'}), 400
+
+        message = format_alert_message(data)
+        app.logger.info(f"Formatted message: {message}")
+
         send_to_discord(message)
         app.logger.info("Message sent to Discord successfully")
         return jsonify({'status': 'success'}), 200
     except Exception as e:
-        app.logger.error(f"Failed to send message to Discord: {e}")
+        app.logger.error(f"An error occurred: {e}")
+        return jsonify({'status': 'failure', 'reason': str(e)}), 500
+
+@app.route('/manual_input', methods=['POST'])
+def manual_input():
+    try:
+        data = request.json
+        app.logger.info(f"Received manual input data: {data}")
+        if not data or 'author' not in data or 'stock_symbol' not in data or 'signal_type' not in data or 'timeframe' not in data or 'local_time' not in data:
+            app.logger.error("Invalid manual input data")
+            return jsonify({'status': 'failure', 'reason': 'Invalid manual input data'}), 400
+
+        message = format_alert_message(data)
+        app.logger.info(f"Formatted message: {message}")
+
+        send_to_discord(message)
+        app.logger.info("Message sent to Discord successfully")
+        return jsonify({'status': 'success'}), 200
+    except Exception as e:
+        app.logger.error(f"An error occurred: {e}")
         return jsonify({'status': 'failure', 'reason': str(e)}), 500
 
 def format_alert_message(data):
     local_time = data.get('local_time')
     timeframe = data.get('timeframe')
-    signal_type = data.get('signal_type')
+    signal_type = data.get('signal_type').upper()  # Capitalize signal type
     stock_symbol = data.get('stock_symbol')
+    author = data.get('author', 'TradingView')  # Default to 'TradingView' if not provided
 
-    description = get_description(signal_type, timeframe, stock_symbol)
+    description = data.get('description', f"A {signal_type} signal has been generated for {stock_symbol} on the {timeframe} timeframe. Please check your chart for verification and please use proper risk management.")
+    emoji = get_emoji(signal_type)
 
     formatted_message = (
-        f"**Signal Alert**\n\n"
+        f"**Signal Alert** {emoji}\n\n"
+        f"**Author**: {author}\n"
         f"**Time**: {local_time}\n"
         f"**Timeframe**: {timeframe}\n"
         f"**Signal Type**: {signal_type}\n"
@@ -58,21 +79,13 @@ def format_alert_message(data):
 
     return formatted_message
 
-def get_description(signal_type, timeframe, stock_symbol):
-    if signal_type == "Buy":
-        return f"A buy signal has been generated for {stock_symbol} on the {timeframe} timeframe. Please check your chart for verification and use proper risk management."
-    elif signal_type == "Sell":
-        return f"A sell signal has been generated for {stock_symbol} on the {timeframe} timeframe. Please check your chart for verification and use proper risk management."
-    elif signal_type == "Caution Buy":
-        return f"A caution buy signal has been generated for {stock_symbol} on the {timeframe} timeframe. Please check your chart for verification and use proper risk management."
-    elif signal_type == "Exit Buy":
-        return f"An exit buy signal has been generated for {stock_symbol} on the {timeframe} timeframe. Please check your chart for verification and use proper risk management."
-    elif signal_type == "Caution Sell":
-        return f"A caution sell signal has been generated for {stock_symbol} on the {timeframe} timeframe. Please check your chart for verification and use proper risk management."
-    elif signal_type == "Exit Sell":
-        return f"An exit sell signal has been generated for {stock_symbol} on the {timeframe} timeframe. Please check your chart for verification and use proper risk management."
+def get_emoji(signal_type):
+    if "BUY" in signal_type:
+        return "📈🟢"  # Up arrow and green circle
+    elif "SELL" in signal_type:
+        return "📉🔴"  # Down arrow and red circle
     else:
-        return f"A {signal_type} signal has been generated for {stock_symbol} on the {timeframe} timeframe. Please check your chart for verification and use proper risk management."
+        return "⚠️"  # Warning sign for caution signals
 
 def send_to_discord(message):
     data = {
