@@ -1,6 +1,5 @@
 from flask import Flask, request, jsonify
 import requests
-import os
 import logging
 
 app = Flask(__name__)
@@ -8,10 +7,11 @@ app = Flask(__name__)
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
-# Verify the Discord Webhook URL environment variable
-DISCORD_WEBHOOK_URL = os.environ.get('DISCORD_WEBHOOK_URL')
+# Discord Webhook URL - directly set here
+DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1253199625087750216/LVwNxxDEyHAF7D7ByV_NwAw-6HmXKdAlWMU6PO5e07_zg6gqSkidRheIdY94B1e9Ye-w"
+
 if not DISCORD_WEBHOOK_URL:
-    app.logger.error("DISCORD_WEBHOOK_URL environment variable is not set")
+    app.logger.error("DISCORD_WEBHOOK_URL is not set")
 else:
     app.logger.info(f"DISCORD_WEBHOOK_URL: {DISCORD_WEBHOOK_URL}")
 
